@@ -1,27 +1,41 @@
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Maximize2, Mic2 } from "lucide-react";
 import { Track } from "../data";
+import clsx from "clsx";
 
 interface ControlsProps {
   currentTrack: Track;
   isPlaying: boolean;
   progress: number;
+  duration: number;
+  volume: number;
+  showLyrics: boolean;
   onPlayPause: () => void;
   onNext: () => void;
   onPrev: () => void;
+  onSeek: (time: number) => void;
+  onVolumeChange: (vol: number) => void;
+  onToggleLyrics: () => void;
 }
 
 export function Controls({
   currentTrack,
   isPlaying,
   progress,
+  duration,
+  volume,
+  showLyrics,
   onPlayPause,
   onNext,
   onPrev,
+  onSeek,
+  onVolumeChange,
+  onToggleLyrics,
 }: ControlsProps) {
   // Format seconds to mm:ss
   const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds < 0) return "0:00";
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -31,17 +45,28 @@ export function Controls({
       <div className="md:hidden absolute top-0 left-0 w-full h-[2px] bg-black/5 dark:bg-white/5">
         <div 
           className="h-full bg-rose-500 transition-all duration-1000 ease-linear"
-          style={{ width: `${(progress / currentTrack.duration) * 100}%` }}
+          style={{ width: `${(progress / duration) * 100}%` }}
+        />
+        <input 
+          type="range"
+          min={0}
+          max={duration || 100}
+          value={progress}
+          onChange={(e) => onSeek(Number(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
       </div>
 
       {/* Currently Playing Info */}
       <div className="flex items-center gap-3 md:gap-4 w-[60%] md:w-1/4">
-        <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-md md:rounded-lg overflow-hidden shadow-md group shrink-0">
+        <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-md md:rounded-lg overflow-hidden shadow-md group shrink-0 bg-zinc-200 dark:bg-zinc-800">
           <img
             src={currentTrack.coverUrl}
             alt={currentTrack.album}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080";
+            }}
           />
           <div className="hidden md:flex absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center cursor-pointer">
              <Maximize2 className="text-white w-4 h-4" />
@@ -97,27 +122,53 @@ export function Controls({
         {/* Scrubber */}
         <div className="hidden md:flex items-center gap-3 w-full max-w-md text-xs font-medium text-zinc-500">
           <span className="w-10 text-right">{formatTime(progress)}</span>
-          <div className="flex-1 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden cursor-pointer group">
+          <div className="flex-1 relative h-1.5 bg-black/10 dark:bg-white/10 rounded-full cursor-pointer group flex items-center">
             <div 
-              className="h-full bg-rose-500 relative group-hover:bg-rose-400"
-              style={{ width: `${(progress / currentTrack.duration) * 100}%` }}
+              className="absolute left-0 h-full bg-rose-500 rounded-full group-hover:bg-rose-400 pointer-events-none"
+              style={{ width: `${(progress / duration) * 100}%` }}
             >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity translate-x-1.5" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity translate-x-1.5 pointer-events-none" />
             </div>
+            <input 
+              type="range"
+              min={0}
+              max={duration || 100}
+              value={progress}
+              onChange={(e) => onSeek(Number(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
           </div>
-          <span className="w-10">-{formatTime(currentTrack.duration - progress)}</span>
+          <span className="w-10">-{formatTime(Math.max(0, duration - progress))}</span>
         </div>
       </div>
 
       {/* Right Controls */}
       <div className="hidden md:flex items-center justify-end gap-4 w-1/4 text-zinc-400">
-         <button className="hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+         <button 
+           onClick={onToggleLyrics}
+           className={clsx(
+             "transition-colors", 
+             showLyrics ? "text-rose-500" : "hover:text-zinc-900 dark:hover:text-zinc-100"
+           )}
+         >
              <Mic2 className="w-4 h-4" />
          </button>
         <div className="flex items-center gap-2 w-32 group">
           <Volume2 className="w-4 h-4 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer" />
-          <div className="flex-1 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden cursor-pointer">
-            <div className="h-full bg-zinc-400 group-hover:bg-rose-500 w-[70%] transition-colors" />
+          <div className="flex-1 relative h-1.5 bg-black/10 dark:bg-white/10 rounded-full cursor-pointer flex items-center">
+            <div 
+              className="absolute left-0 h-full bg-zinc-400 rounded-full group-hover:bg-rose-500 transition-colors pointer-events-none" 
+              style={{ width: `${volume * 100}%` }}
+            />
+            <input 
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => onVolumeChange(Number(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
           </div>
         </div>
       </div>

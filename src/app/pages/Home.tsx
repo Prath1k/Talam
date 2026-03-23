@@ -11,7 +11,7 @@ import clsx from "clsx";
 type VisualizerType = "vinyl" | "mp3";
 
 export function Home() {
-  const { currentTrack, isPlaying, handleTrackSelect, handleNext, handlePrev, handlePlayPause, progress } = usePlayer();
+  const { tracks, currentTrack, isPlaying, handleTrackSelect, handleNext, handlePrev, handlePlayPause, progress } = usePlayer();
   const [visualizer, setVisualizer] = useState<VisualizerType>("vinyl");
   
   // TrackList collapse state
@@ -138,7 +138,7 @@ export function Home() {
             className="flex flex-col overflow-hidden w-full lg:w-1/2 lg:h-full z-20"
           >
             <TrackList
-              tracks={mockTracks}
+              tracks={tracks}
               currentTrackId={currentTrack.id}
               isPlaying={isPlaying}
               onTrackSelect={handleTrackSelect}

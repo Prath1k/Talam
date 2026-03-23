@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { motion, AnimatePresence } from "motion/react";
 
 export function RootLayout() {
-  const { currentTrack, isPlaying, progress, handlePlayPause, handleNext, handlePrev } = usePlayer();
+  const { currentTrack, isPlaying, progress, duration, volume, handlePlayPause, handleNext, handlePrev, handleSeek, handleVolumeChange, toggleLyrics, showLyrics } = usePlayer();
   const location = useLocation();
 
   return (
@@ -27,6 +27,9 @@ export function RootLayout() {
              src={currentTrack.coverUrl} 
              alt="Background blur" 
              className="w-full h-full object-cover"
+             onError={(e) => {
+               (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080";
+             }}
            />
         </motion.div>
       </AnimatePresence>
@@ -36,17 +39,46 @@ export function RootLayout() {
       <main className="flex-1 flex flex-col min-w-0 z-10 relative shadow-[inset_1px_0_0_rgba(0,0,0,0.1)] overflow-hidden">
         {/* Main Content Area via Router */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="absolute inset-0 flex flex-col"
-            >
-              <Outlet />
-            </motion.div>
+          <Outlet />
+
+          {/* Lyrics Overlay */}
+          <AnimatePresence>
+            {showLyrics && (
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 50 }}
+                className="absolute inset-x-0 bottom-0 z-50 bg-black/60 backdrop-blur-2xl border-t border-white/10 flex flex-col items-center justify-start py-12 px-6 overflow-y-auto custom-scrollbar"
+                style={{ top: '0%' }} // cover the whole outlet area
+              >
+                <div className="max-w-2xl w-full text-center space-y-8">
+                  <div className="flex flex-col items-center gap-4 mb-8">
+                     <img 
+                       src={currentTrack.coverUrl} 
+                       alt="Cover" 
+                       className="w-48 h-48 rounded-xl shadow-2xl bg-zinc-800"
+                       onError={(e) => {
+                         (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080";
+                       }}
+                     />
+                     <div>
+                       <h2 className="text-3xl font-black text-white">{currentTrack.title}</h2>
+                       <p className="text-xl text-zinc-300 font-medium">{currentTrack.artist}</p>
+                     </div>
+                  </div>
+                  
+                  {currentTrack.lyrics ? (
+                    <div className="whitespace-pre-wrap text-2xl md:text-3xl font-bold leading-relaxed text-zinc-100/90 text-center">
+                      {currentTrack.lyrics}
+                    </div>
+                  ) : (
+                    <div className="text-xl text-zinc-400 italic mt-12 py-12 bg-white/5 rounded-2xl">
+                      Could not find lyrics for this track automatically.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
 
@@ -55,9 +87,15 @@ export function RootLayout() {
           currentTrack={currentTrack}
           isPlaying={isPlaying}
           progress={progress}
+          duration={duration}
+          volume={volume}
           onPlayPause={handlePlayPause}
           onNext={handleNext}
           onPrev={handlePrev}
+          onSeek={handleSeek}
+          onVolumeChange={handleVolumeChange}
+          onToggleLyrics={toggleLyrics}
+          showLyrics={showLyrics}
         />
 
         {/* Mobile Tab Bar */}
