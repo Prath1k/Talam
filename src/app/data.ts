@@ -6,6 +6,7 @@ export interface Track {
   coverUrl: string;
   songUrl?: string; // Add this!
   duration: number; // in seconds
+  isFavourite?: boolean;
   lyrics?: string;
   fetchedMetadata?: boolean;
 }

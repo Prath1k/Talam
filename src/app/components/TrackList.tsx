@@ -8,9 +8,10 @@ interface TrackListProps {
   currentTrackId: string;
   isPlaying: boolean;
   onTrackSelect: (id: string) => void;
+  onToggleFavourite: (id: string) => void;
 }
 
-export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect }: TrackListProps) {
+export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, onToggleFavourite }: TrackListProps) {
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white/60 dark:bg-black/60 backdrop-blur-xl p-8 lg:p-12 relative z-10 custom-scrollbar border-l border-white/20">
       <div className="max-w-3xl mx-auto">
@@ -102,7 +103,18 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect }: 
                 </div>
 
                 <div className="flex items-center gap-4 text-zinc-400">
-                  <Heart className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-all cursor-pointer" />
+                  <Heart 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavourite(track.id);
+                    }}
+                    className={clsx(
+                      "w-4 h-4 transition-all cursor-pointer hover:scale-110 active:scale-95",
+                      track.isFavourite 
+                        ? "text-rose-500 fill-rose-500 opacity-100" 
+                        : "opacity-0 group-hover:opacity-100 hover:text-rose-500"
+                    )} 
+                  />
                   <span className="text-sm font-medium tabular-nums opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
                     {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}
                   </span>

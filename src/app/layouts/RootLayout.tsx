@@ -7,7 +7,12 @@ import clsx from "clsx";
 import { motion, AnimatePresence } from "motion/react";
 
 export function RootLayout() {
-  const { currentTrack, isPlaying, progress, duration, volume, handlePlayPause, handleNext, handlePrev, handleSeek, handleVolumeChange, toggleLyrics, showLyrics } = usePlayer();
+  const { 
+    currentTrack, isPlaying, progress, duration, volume, 
+    handlePlayPause, handleNext, handlePrev, handleSeek, 
+    handleVolumeChange, toggleLyrics, showLyrics,
+    isShuffle, repeatMode, handleToggleShuffle, handleToggleRepeat, handleToggleFavourite 
+  } = usePlayer();
   const location = useLocation();
 
   return (
@@ -89,13 +94,18 @@ export function RootLayout() {
           progress={progress}
           duration={duration}
           volume={volume}
+          showLyrics={showLyrics}
+          isShuffle={isShuffle}
+          repeatMode={repeatMode}
           onPlayPause={handlePlayPause}
           onNext={handleNext}
           onPrev={handlePrev}
           onSeek={handleSeek}
           onVolumeChange={handleVolumeChange}
           onToggleLyrics={toggleLyrics}
-          showLyrics={showLyrics}
+          onToggleShuffle={handleToggleShuffle}
+          onToggleRepeat={handleToggleRepeat}
+          onToggleFavourite={handleToggleFavourite}
         />
 
         {/* Mobile Tab Bar */}

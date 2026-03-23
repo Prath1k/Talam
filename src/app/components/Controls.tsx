@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Maximize2, Mic2 } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Maximize2, Mic2, Heart } from "lucide-react";
 import { Track } from "../data";
 import clsx from "clsx";
 
@@ -9,12 +9,17 @@ interface ControlsProps {
   duration: number;
   volume: number;
   showLyrics: boolean;
+  isShuffle: boolean;
+  repeatMode: "off" | "one" | "all";
   onPlayPause: () => void;
   onNext: () => void;
   onPrev: () => void;
   onSeek: (time: number) => void;
   onVolumeChange: (vol: number) => void;
   onToggleLyrics: () => void;
+  onToggleShuffle: () => void;
+  onToggleRepeat: () => void;
+  onToggleFavourite: (id: string) => void;
 }
 
 export function Controls({
@@ -24,12 +29,17 @@ export function Controls({
   duration,
   volume,
   showLyrics,
+  isShuffle,
+  repeatMode,
   onPlayPause,
   onNext,
   onPrev,
   onSeek,
   onVolumeChange,
   onToggleLyrics,
+  onToggleShuffle,
+  onToggleRepeat,
+  onToggleFavourite,
 }: ControlsProps) {
   // Format seconds to mm:ss
   const formatTime = (seconds: number) => {
@@ -72,10 +82,21 @@ export function Controls({
              <Maximize2 className="text-white w-4 h-4" />
           </div>
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-            {currentTrack.title}
-          </span>
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+              {currentTrack.title}
+            </span>
+            <button 
+              onClick={() => onToggleFavourite(currentTrack.id)}
+              className={clsx(
+                "transition-all hover:scale-110 active:scale-95",
+                currentTrack.isFavourite ? "text-rose-500 fill-rose-500" : "text-zinc-400 hover:text-rose-500"
+              )}
+            >
+              <Heart className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate hover:underline cursor-pointer">
             {currentTrack.artist}
           </span>
@@ -85,7 +106,14 @@ export function Controls({
       {/* Main Controls */}
       <div className="flex flex-1 md:flex-col items-center justify-end md:justify-center md:w-2/4 gap-2 pr-2 md:pr-0">
         <div className="flex items-center gap-4 md:gap-6">
-          <button className="hidden md:block text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+          <button 
+            onClick={onToggleShuffle}
+            className={clsx(
+              "hidden md:block transition-colors",
+              isShuffle ? "text-rose-500" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            )}
+            title="Shuffle"
+          >
             <Shuffle className="w-4 h-4" />
           </button>
           
@@ -114,8 +142,18 @@ export function Controls({
             <SkipForward className="w-5 h-5 md:w-6 md:h-6 fill-current" />
           </button>
           
-          <button className="hidden md:block text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+          <button 
+            onClick={onToggleRepeat}
+            className={clsx(
+              "hidden md:block transition-all relative",
+              repeatMode !== "off" ? "text-rose-500" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            )}
+            title={`Repeat: ${repeatMode}`}
+          >
             <Repeat className="w-4 h-4" />
+            {repeatMode === "one" && (
+              <span className="absolute -top-1 -right-1 text-[8px] font-bold bg-rose-500 text-white rounded-full w-2.5 h-2.5 flex items-center justify-center">1</span>
+            )}
           </button>
         </div>
 

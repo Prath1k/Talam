@@ -18,6 +18,8 @@ interface PlayerContextType {
   duration: number;
   volume: number;
   showLyrics: boolean;
+  isShuffle: boolean;
+  repeatMode: "off" | "one" | "all";
   toggleLyrics: () => void;
   handlePlayPause: () => void;
   handleNext: () => void;
@@ -26,6 +28,9 @@ interface PlayerContextType {
   playDirectly: (track: Track) => void;
   handleSeek: (time: number) => void;
   handleVolumeChange: (vol: number) => void;
+  handleToggleFavourite: (id: string) => void;
+  handleToggleShuffle: () => void;
+  handleToggleRepeat: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -36,48 +41,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.7); // default to 70% volume
+  const [volume, setVolume] = useState(0.7);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<"off" | "one" | "all">("off");
   const [audio] = useState(new Audio());
   
   const currentTrack = tracks[currentTrackIndex] || mockTracks[0];
 
-  // Fetch missing metadata (Album Art, Artist, Lyrics) for dynamically found local tracks
-  useEffect(() => {
-    let isMounted = true;
-    
-    const enhanceTracks = async () => {
-      // Find tracks that need metadata (local dynamic tracks that haven't been fetched yet)
-      const needsMetadata = tracks.some(t => t.id.startsWith('local-') && !t.fetchedMetadata);
-      if (!needsMetadata) return;
-
-      const enhancedTracks = await Promise.all(
-        tracks.map(async (track) => {
-          if (track.id.startsWith('local-') && !track.fetchedMetadata) {
-            const meta = await fetchTrackMetadata(track.title);
-            if (meta) {
-              return { ...track, ...meta, fetchedMetadata: true };
-            }
-            // Mark as fetched even if it fails, so we don't infinitely retry
-            return { ...track, fetchedMetadata: true };
-          }
-          return track;
-        })
-      );
-      
-      if (isMounted) {
-        setTracks(enhancedTracks);
-      }
-    };
-    
-    enhanceTracks();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [tracks]);
-
-  // Apply volume changes to actual audio object
+  // Apply volume changes
   useEffect(() => {
     audio.volume = volume;
   }, [volume, audio]);
@@ -88,7 +60,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase.from("tracks").select("*");
         if (data && data.length > 0) {
-          setTracks(data);
+          setTracks(data.map(t => ({ ...t, isFavourite: false })));
         }
       } catch (err) {
         console.error("Failed to fetch tracks:", err);
@@ -97,7 +69,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     fetchTracks();
   }, []);
 
-  // Handle actual Audio playback if songUrl exists, otherwise simulate
+  // Handle actual Audio playback
   useEffect(() => {
     if (currentTrack.songUrl) {
       audio.src = currentTrack.songUrl;
@@ -105,7 +77,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (isPlaying) {
         audio.play().catch(e => {
            console.error("Audio playback error:", e);
-           // Fallback if the song/radio stream is broken or blocked
            setIsPlaying(false);
         });
       }
@@ -146,13 +117,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
          }
       };
 
-      const handleEnded = () => handleNext();
+      const handleEnded = () => {
+        if (repeatMode === "one") {
+          audio.currentTime = 0;
+          audio.play();
+        } else {
+          handleNext();
+        }
+      };
       
       const handleError = () => {
          console.warn(`Fallback triggered: Failed to load ${currentTrack.songUrl}`);
          setIsPlaying(false);
-         // You could automatically handleNext() here to skip broken radio links!
-         // handleNext(); 
       };
 
       audio.addEventListener("timeupdate", updateProgress);
@@ -172,6 +148,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         timer = setInterval(() => {
           setProgress((prev) => {
             if (prev >= duration) {
+              if (repeatMode === "one") {
+                return 0;
+              }
               handleNext();
               return 0;
             }
@@ -181,12 +160,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       return () => clearInterval(timer);
     }
-  }, [isPlaying, currentTrack, currentTrackIndex, audio, duration]);
-
-  // Reset progress on track change
-  useEffect(() => {
-    setProgress(0);
-  }, [currentTrackIndex]);
+  }, [isPlaying, currentTrack, currentTrackIndex, audio, duration, repeatMode]);
 
   const handleSeek = (time: number) => {
     setProgress(time);
@@ -208,13 +182,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   };
 
   const handleNext = () => {
-    setCurrentTrackIndex((prev) => (prev + 1) % tracks.length);
+    if (isShuffle) {
+      const randomIndex = Math.floor(Math.random() * tracks.length);
+      setCurrentTrackIndex(randomIndex);
+    } else {
+      const nextIndex = (currentTrackIndex + 1) % tracks.length;
+      if (nextIndex === 0 && repeatMode === "off") {
+        setIsPlaying(false);
+      } else {
+        setCurrentTrackIndex(nextIndex);
+      }
+    }
     setIsPlaying(true);
   };
 
   const handlePrev = () => {
     setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
     setIsPlaying(true);
+  };
+
+  const handleToggleShuffle = () => setIsShuffle(!isShuffle);
+  
+  const handleToggleRepeat = () => {
+    const modes: ("off" | "one" | "all")[] = ["off", "all", "one"];
+    const currentIndex = modes.indexOf(repeatMode);
+    setRepeatMode(modes[(currentIndex + 1) % modes.length]);
+  };
+
+  const handleToggleFavourite = (id: string) => {
+    setTracks(prev => prev.map(track => 
+      track.id === id ? { ...track, isFavourite: !track.isFavourite } : track
+    ));
   };
 
   const handleTrackSelect = (id: string) => {
@@ -226,12 +224,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   };
 
   const playDirectly = (track: Track) => {
-    // Check if it's already in the tracklist
     const existingIndex = tracks.findIndex(t => t.id === track.id);
     if (existingIndex !== -1) {
       setCurrentTrackIndex(existingIndex);
     } else {
-      // Add it to the top of the tracklist and play it
       setTracks((prev) => [track, ...prev]);
       setCurrentTrackIndex(0);
     }
@@ -249,6 +245,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         duration,
         volume,
         showLyrics,
+        isShuffle,
+        repeatMode,
         toggleLyrics,
         handlePlayPause,
         handleNext,
@@ -257,6 +255,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playDirectly,
         handleSeek,
         handleVolumeChange,
+        handleToggleFavourite,
+        handleToggleShuffle,
+        handleToggleRepeat,
       }}
     >
       {children}
