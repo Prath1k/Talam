@@ -26,7 +26,7 @@ export function Controls({
   };
 
   return (
-    <div className="h-16 md:h-24 w-full bg-white/70 dark:bg-zinc-900/70 backdrop-blur-3xl border-t border-black/5 dark:border-white/10 flex items-center justify-between px-3 md:px-6 z-40 flex-shrink-0 relative">
+    <div className="h-20 md:h-28 w-full bg-white/80 dark:bg-zinc-900/80 backdrop-blur-3xl border-t border-black/5 dark:border-white/10 flex items-center justify-between px-4 md:px-8 pb-2 md:pb-4 z-40 flex-shrink-0 relative">
       {/* Mobile Progress Bar (Absolute Top) */}
       <div className="md:hidden absolute top-0 left-0 w-full h-[2px] bg-black/5 dark:bg-white/5">
         <div 

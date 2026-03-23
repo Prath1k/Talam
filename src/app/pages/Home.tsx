@@ -55,6 +55,18 @@ export function Home() {
   return (
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden h-full w-full relative bg-zinc-100 dark:bg-zinc-950">
       {/* Visualizer Section */}
+      {/* Desktop Toggle Button - Positioned absolutely at the top-right of the main content area */}
+      <button
+        onClick={() => setIsUpNextOpen(!isUpNextOpen)}
+        className="hidden lg:flex absolute top-6 right-6 z-50 items-center gap-2 bg-white/20 dark:bg-black/40 backdrop-blur-xl px-4 py-2.5 rounded-full border border-black/10 dark:border-white/10 shadow-lg text-zinc-700 dark:text-zinc-300 hover:bg-white/30 dark:hover:bg-black/60 transition-all"
+        title={isUpNextOpen ? "Hide Up Next" : "Show Up Next"}
+      >
+        <ListMusic className="w-5 h-5" />
+        <span className="font-medium text-sm">Up Next</span>
+        {isUpNextOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+      </button>
+
+      {/* Visualizer Section */}
       <motion.div 
         layout
         className={clsx(
@@ -62,20 +74,6 @@ export function Home() {
           isUpNextOpen ? "h-[50vh] lg:h-full lg:w-1/2 flex-shrink-0" : "h-full w-full flex-1"
         )}
       >
-        {/* Top Controls */}
-        <div className="absolute top-4 lg:top-6 left-0 right-0 z-50 flex justify-end pointer-events-none px-4">
-          {/* Toggle Up Next Button - Desktop */}
-          <button
-            onClick={() => setIsUpNextOpen(!isUpNextOpen)}
-            className="hidden lg:flex pointer-events-auto items-center gap-2 bg-white/20 dark:bg-black/40 backdrop-blur-xl px-4 py-2.5 rounded-full border border-black/10 dark:border-white/10 shadow-lg text-zinc-700 dark:text-zinc-300 hover:bg-white/30 dark:hover:bg-black/60 transition-colors"
-            title="Toggle Up Next"
-          >
-            <ListMusic className="w-5 h-5" />
-            <span className="font-medium text-sm">Up Next</span>
-            {isUpNextOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
-
         {/* The Animated Visualizer */}
         <div className="flex-1 w-full h-full relative overflow-hidden">
           <AnimatePresence mode="wait">

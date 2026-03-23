@@ -79,9 +79,9 @@ export function VinylPlayer({ currentTrack, isPlaying, isExpanded = false }: Vin
 
           {/* Stylized Tonearm Arm */}
           <motion.div 
-              className="absolute top-[18%] -right-[1%] md:top-[22%] md:-right-[3%] w-[2%] h-[60%] bg-zinc-300 origin-top z-10 rounded-full shadow-lg border border-zinc-400"
+              className="absolute top-[12.5%] -right-[1%] md:top-[17.5%] md:-right-[3%] w-[2%] h-[65%] bg-zinc-300 origin-top z-10 rounded-full shadow-lg border border-zinc-400"
               initial={{ rotate: -25 }}
-              animate={{ rotate: isPlaying ? 20 : -25 }}
+              animate={{ rotate: isPlaying ? 22 : -25 }}
               transition={{ type: "spring", stiffness: 50, damping: 20 }}
               style={{ transformOrigin: "top center" }}
           >

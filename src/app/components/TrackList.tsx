@@ -85,7 +85,7 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect }: 
                   <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
                 </div>
 
-                <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex flex-col flex-[2] min-w-0">
                   <span className={clsx(
                     "text-base font-semibold truncate",
                     isCurrent ? "text-rose-600 dark:text-rose-400" : "text-zinc-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors"
@@ -97,7 +97,7 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect }: 
                   </span>
                 </div>
 
-                <div className="hidden md:flex flex-1 min-w-0 text-sm text-zinc-500 dark:text-zinc-400 truncate">
+                <div className="hidden xl:flex flex-1 min-w-0 text-sm text-zinc-500 dark:text-zinc-400 truncate">
                   {track.album}
                 </div>
 
