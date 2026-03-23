@@ -8,6 +8,8 @@ export interface Track {
   duration: number; // in seconds
   isFavourite?: boolean;
   lyrics?: string;
+  artistInfo?: string;
+  youtubeUrl?: string;
   fetchedMetadata?: boolean;
 }
 

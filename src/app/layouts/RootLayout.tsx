@@ -77,8 +77,27 @@ export function RootLayout() {
                       {currentTrack.lyrics}
                     </div>
                   ) : (
-                    <div className="text-xl text-zinc-400 italic mt-12 py-12 bg-white/5 rounded-2xl">
+                    <div className="text-xl text-zinc-400 italic mt-12 py-12 w-full bg-white/5 rounded-2xl">
                       Could not find lyrics for this track automatically.
+                    </div>
+                  )}
+                  
+                  {currentTrack.artistInfo && (
+                    <div className="mt-16 pt-8 border-t border-white/10 text-left w-full">
+                      <h3 className="text-xl font-bold text-white mb-4">About {currentTrack.artist}</h3>
+                      <p className="text-zinc-300 leading-relaxed text-sm md:text-base">
+                        {currentTrack.artistInfo}
+                      </p>
+                      {currentTrack.youtubeUrl && (
+                        <a 
+                          href={currentTrack.youtubeUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 mt-4 text-rose-400 hover:text-rose-300 text-sm font-medium"
+                        >
+                          Watch on YouTube →
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
