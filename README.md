@@ -1,7 +1,7 @@
 
   # Talam
 
-  This is a code bundle for Talam. The original project is available at https://www.figma.com/design/KNCI4DrpWjwjR5OSH8vs0C/Talam.
+  This is a code bundle for Talam. The original project is available at 
 
   ## Running the code
 
