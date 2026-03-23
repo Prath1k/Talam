@@ -28,8 +28,8 @@ export function Sidebar() {
       <div className="flex-1 overflow-y-auto px-3 space-y-8">
         <div>
           <ul className="space-y-1">
-            {navItems.map((item, i) => (
-              <li key={i}>
+            {navItems.map((item) => (
+              <li key={item.path}>
                 <NavLink
                   to={item.path}
                   className={({ isActive }) => clsx(
@@ -50,8 +50,8 @@ export function Sidebar() {
         <div>
           <h3 className="px-3 mb-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Library</h3>
           <ul className="space-y-1">
-            {libraryItems.map((item, i) => (
-              <li key={i}>
+            {libraryItems.map((item) => (
+              <li key={item.path}>
                 <NavLink
                   to={item.path}
                   className={({ isActive }) => clsx(

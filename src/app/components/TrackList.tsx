@@ -18,13 +18,30 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect }: 
           Up Next
         </h1>
         
-        <div className="flex flex-col gap-1">
+        <motion.div 
+          className="flex flex-col gap-1"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.05
+              }
+            }
+          }}
+        >
           {tracks.map((track, index) => {
             const isCurrent = track.id === currentTrackId;
 
             return (
               <motion.div
                 key={track.id}
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 }
+                }}
                 onClick={() => onTrackSelect(track.id)}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
@@ -96,7 +113,7 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect }: 
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

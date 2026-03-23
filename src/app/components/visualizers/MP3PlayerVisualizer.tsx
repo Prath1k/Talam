@@ -79,10 +79,9 @@ export function MP3PlayerVisualizer({
 
             {/* Simple Progress Bar */}
             <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden mt-1 md:mt-2">
-              <motion.div 
-                className="h-full bg-rose-500"
+              <div 
+                className="h-full bg-rose-500 transition-all duration-1000 ease-linear"
                 style={{ width: `${progressPercentage}%` }}
-                layout
               />
             </div>
           </div>

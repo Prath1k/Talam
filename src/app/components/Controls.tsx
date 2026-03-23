@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Maximize2, Mic2 } from "lucide-react";
 import { Track } from "../data";
 
@@ -28,6 +27,14 @@ export function Controls({
 
   return (
     <div className="h-16 md:h-24 w-full bg-white/70 dark:bg-zinc-900/70 backdrop-blur-3xl border-t border-black/5 dark:border-white/10 flex items-center justify-between px-3 md:px-6 z-40 flex-shrink-0 relative">
+      {/* Mobile Progress Bar (Absolute Top) */}
+      <div className="md:hidden absolute top-0 left-0 w-full h-[2px] bg-black/5 dark:bg-white/5">
+        <div 
+          className="h-full bg-rose-500 transition-all duration-1000 ease-linear"
+          style={{ width: `${(progress / currentTrack.duration) * 100}%` }}
+        />
+      </div>
+
       {/* Currently Playing Info */}
       <div className="flex items-center gap-3 md:gap-4 w-[60%] md:w-1/4">
         <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-md md:rounded-lg overflow-hidden shadow-md group shrink-0">
