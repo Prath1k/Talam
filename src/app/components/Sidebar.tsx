@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Radio, PlaySquare, Mic2, Folder, Heart, Mic, ListMusic, Settings as SettingsIcon } from "lucide-react";
+import { Home, LayoutGrid, Radio, Settings as SettingsIcon, Mic } from "lucide-react";
 import clsx from "clsx";
 
 import { NavLink } from "react-router";
@@ -7,13 +7,6 @@ const navItems = [
   { icon: Home, label: "Listen Now", path: "/" },
   { icon: LayoutGrid, label: "Browse", path: "/browse" },
   { icon: Radio, label: "Radio", path: "/radio" },
-];
-
-const libraryItems = [
-  { icon: PlaySquare, label: "Recently Added", path: "/library/recent" },
-  { icon: Mic2, label: "Artists", path: "/library/artists" },
-  { icon: Folder, label: "Albums", path: "/library/albums" },
-  { icon: ListMusic, label: "Songs", path: "/library/songs" },
   { icon: SettingsIcon, label: "Settings", path: "/settings" },
 ];
 
@@ -29,28 +22,6 @@ export function Sidebar() {
         <div>
           <ul className="space-y-1">
             {navItems.map((item) => (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) => clsx(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-black/5 dark:bg-white/10 text-rose-500"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  )}
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="px-3 mb-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Library</h3>
-          <ul className="space-y-1">
-            {libraryItems.map((item) => (
               <li key={item.path}>
                 <NavLink
                   to={item.path}

@@ -1,8 +1,10 @@
 import { motion } from "motion/react";
 import { mockAlbums } from "../data";
 import { Play } from "lucide-react";
+import { usePlayer } from "../context/PlayerContext";
 
 export function Browse() {
+  const { playDirectly } = usePlayer();
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white/60 dark:bg-black/60 backdrop-blur-xl p-8 lg:p-12 relative z-10 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-12 pb-24">
@@ -31,7 +33,10 @@ export function Browse() {
                 <h2 className="text-3xl md:text-5xl font-black text-white mb-1 drop-shadow-md">{mockAlbums[2].title}</h2>
                 <p className="text-zinc-300 font-medium drop-shadow-md">{mockAlbums[2].artist}</p>
               </div>
-              <button className="hidden md:flex items-center gap-2 bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-xl">
+              <button 
+                onClick={() => playDirectly({ ...mockAlbums[2], id: mockAlbums[2].id, songUrl: "", duration: 180, isFavourite: false })}
+                className="hidden md:flex items-center gap-2 bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-xl"
+              >
                 <Play className="w-5 h-5 fill-current" />
                 Listen Now
               </button>
@@ -43,7 +48,6 @@ export function Browse() {
         <section>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">New Releases</h3>
-            <button className="text-sm font-semibold text-rose-500 hover:text-rose-600 transition-colors">See All</button>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -62,7 +66,10 @@ export function Browse() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <button className="w-12 h-12 bg-rose-500 text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-xl">
+                    <button 
+                      onClick={() => playDirectly({ ...album, songUrl: "", duration: 180, isFavourite: false })}
+                      className="w-12 h-12 bg-rose-500 text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-xl"
+                    >
                       <Play className="w-5 h-5 fill-current ml-1" />
                     </button>
                   </div>

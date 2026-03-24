@@ -7,26 +7,68 @@ interface RadioStation {
   changeuuid: string;
   name: string;
   url_resolved: string;
-  homepage: string;
-  favicon: string;
-  tags: string;
-  country: string;
+  homepage?: string;
+  favicon?: string;
+  tags?: string;
+  country?: string;
+}
+
+const RADIO_ENDPOINTS = [
+  "https://all.api.radio-browser.info/json/stations/search?limit=30&hidebroken=true&order=clickcount&reverse=true",
+  "https://de1.api.radio-browser.info/json/stations/search?limit=30&hidebroken=true&order=clickcount&reverse=true",
+  "https://fr1.api.radio-browser.info/json/stations/search?limit=30&hidebroken=true&order=clickcount&reverse=true",
+];
+
+function normalizeStation(station: any, index: number): RadioStation {
+  return {
+    changeuuid: String(station?.changeuuid || station?.stationuuid || `station-${index}`),
+    name: String(station?.name || "Unknown Station"),
+    url_resolved: String(station?.url_resolved || station?.url || ""),
+    homepage: station?.homepage ? String(station.homepage) : "",
+    favicon: station?.favicon ? String(station.favicon) : "",
+    tags: station?.tags ? String(station.tags) : "",
+    country: station?.country ? String(station.country) : "",
+  };
 }
 
 export function Radio() {
   const [stations, setStations] = useState<RadioStation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const { playDirectly } = usePlayer();
 
   useEffect(() => {
     // Fetch live stations from the Free Radio Browser API
     const fetchStations = async () => {
       try {
-        const response = await fetch("https://de1.api.radio-browser.info/json/stations/search?limit=15&has_geo_info=true&hidebroken=true&order=clickcount&reverse=true&language=english");
-        const data = await response.json();
-        setStations(data);
+        let parsedStations: RadioStation[] = [];
+
+        for (const endpoint of RADIO_ENDPOINTS) {
+          try {
+            const response = await fetch(endpoint);
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            if (!Array.isArray(data)) continue;
+
+            parsedStations = data
+              .map((station, index) => normalizeStation(station, index))
+              .filter((station) => station.url_resolved);
+
+            if (parsedStations.length > 0) break;
+          } catch {
+            // Try next endpoint.
+          }
+        }
+
+        if (parsedStations.length === 0) {
+          setErrorMessage("No radio stations are available right now.");
+        }
+
+        setStations(parsedStations);
       } catch (error) {
         console.error("Failed to fetch radio stations:", error);
+        setErrorMessage("Failed to load live radio stations.");
       } finally {
         setLoading(false);
       }
@@ -72,6 +114,7 @@ export function Radio() {
           {loading ? (
              <div className="text-zinc-500 animate-pulse flex items-center gap-2 font-semibold">Tuning frequencies...</div>
           ) : (
+            stations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {stations.map((station, idx) => (
                 <motion.div 
@@ -110,12 +153,17 @@ export function Radio() {
                       {station.name}
                     </h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-snug">
-                      {station.tags.replace(/,/g, ' • ') || "General Radio"}
+                      {station.tags ? station.tags.replace(/,/g, " • ") : "General Radio"}
                     </p>
                   </div>
                 </motion.div>
               ))}
             </div>
+            ) : (
+              <div className="text-zinc-500 dark:text-zinc-400 font-medium bg-white/50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                {errorMessage || "No stations returned by the radio API."}
+              </div>
+            )
           )}
         </section>
 

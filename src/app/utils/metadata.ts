@@ -2,6 +2,51 @@
 const KSOFT_API_KEY = import.meta.env.VITE_KSOFT_API_KEY || "";
 const TASTEDIVE_API_KEY = import.meta.env.VITE_TASTEDIVE_API_KEY || "";
 
+async function fetchLyricsFromProviders(artistName: string, trackName: string) {
+  let lyrics = "";
+
+  // Try KSoft API first (if API key is available)
+  if (KSOFT_API_KEY) {
+    try {
+      const searchQuery = `${artistName} ${trackName}`;
+      const ksoftRes = await fetch(
+        `https://api.ksoft.si/lyrics/search?query=${encodeURIComponent(searchQuery)}&limit=1`,
+        { headers: { "Authorization": `Bearer ${KSOFT_API_KEY}` } }
+      );
+      if (ksoftRes.ok) {
+        const ksoftData = await ksoftRes.json();
+        if (ksoftData.data && ksoftData.data.length > 0) {
+          lyrics = ksoftData.data[0].lyrics || "";
+        }
+      }
+    } catch (e) { console.warn("KSoft lyrics fetch failed:", e); }
+  }
+
+  // Fallback to Lyrics.ovh
+  if (!lyrics) {
+    try {
+      const ovhRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artistName)}/${encodeURIComponent(trackName)}`);
+      if (ovhRes.ok) {
+        const ovhData = await ovhRes.json();
+        lyrics = ovhData.lyrics || "";
+      }
+    } catch (e) { console.warn("Lyrics.ovh fetch failed:", e); }
+  }
+
+  // Fallback to LRCLIB
+  if (!lyrics) {
+    try {
+      const lrcRes = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artistName)}&track_name=${encodeURIComponent(trackName)}`);
+      if (lrcRes.ok) {
+        const lrcData = await lrcRes.json();
+        lyrics = lrcData.syncedLyrics || lrcData.plainLyrics || "";
+      }
+    } catch (e) { console.warn("LRCLIB lyrics fetch failed:", e); }
+  }
+
+  return lyrics;
+}
+
 export async function fetchTrackMetadata(title: string) {
   try {
     console.log("Fetching metadata for:", title);
@@ -15,6 +60,8 @@ export async function fetchTrackMetadata(title: string) {
     let artistName = "";
     let albumName = "";
     let highResCover = "";
+    let itunesFallbackTrackName = "";
+    let itunesFallbackArtistName = "";
 
     // 1. Fetch basic metadata (Cover, Artist, Album)
     // Try JioSaavn API first (via popular public instance) for better global/Indian music results
@@ -44,64 +91,45 @@ export async function fetchTrackMetadata(title: string) {
       console.warn("JioSaavn fetch failed:", e);
     }
 
-    // Fallback to iTunes API if JioSaavn failed or found nothing
-    if (!trackName) {
+    // Query iTunes to improve fallback matching and use it as metadata fallback when needed.
+    try {
       const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&media=music&limit=1`);
       if (itunesRes.ok) {
         const itunesData = await itunesRes.json();
         if (itunesData.results && itunesData.results.length > 0) {
           const result = itunesData.results[0];
-          trackName = result.trackName;
-          artistName = result.artistName;
-          albumName = result.collectionName;
-          highResCover = result.artworkUrl100.replace('100x100bb', '600x600bb');
+          itunesFallbackTrackName = result.trackName || "";
+          itunesFallbackArtistName = result.artistName || "";
+
+          // Fallback to iTunes metadata if JioSaavn found nothing.
+          if (!trackName) {
+            trackName = result.trackName;
+            artistName = result.artistName;
+            albumName = result.collectionName;
+            if (result.artworkUrl100) {
+              highResCover = result.artworkUrl100.replace("100x100bb", "600x600bb");
+            }
+          }
         }
       }
+    } catch (e) {
+      console.warn("iTunes fetch failed:", e);
     }
     
     // If we still found nothing, we can't proceed with enhancements
     if (!trackName) return null;
 
     // 2. Fetch lyrics (KSoft -> Lyrics.ovh -> LRCLIB)
-    let lyrics = "";
-    
-    // Try KSoft API first (if API key is available)
-    if (KSOFT_API_KEY) {
-      try {
-        const searchQuery = `${artistName} ${trackName}`;
-        const ksoftRes = await fetch(
-          `https://api.ksoft.si/lyrics/search?query=${encodeURIComponent(searchQuery)}&limit=1`,
-          { headers: { "Authorization": `Bearer ${KSOFT_API_KEY}` } }
-        );
-        if (ksoftRes.ok) {
-          const ksoftData = await ksoftRes.json();
-          if (ksoftData.data && ksoftData.data.length > 0) {
-            lyrics = ksoftData.data[0].lyrics || "";
-          }
-        }
-      } catch (e) { console.warn("KSoft lyrics fetch failed:", e); }
-    }
-    
-    // Fallback to Lyrics.ovh
-    if (!lyrics) {
-      try {
-        const ovhRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artistName)}/${encodeURIComponent(trackName)}`);
-        if (ovhRes.ok) {
-          const ovhData = await ovhRes.json();
-          lyrics = ovhData.lyrics || "";
-        }
-      } catch (e) { console.warn("Lyrics.ovh fetch failed:", e); }
-    }
-    
-    // Fallback to LRCLIB
-    if (!lyrics) {
-      try {
-        const lrcRes = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artistName)}&track_name=${encodeURIComponent(trackName)}`);
-        if (lrcRes.ok) {
-          const lrcData = await lrcRes.json();
-          lyrics = lrcData.syncedLyrics || lrcData.plainLyrics || "";
-        }
-      } catch (e) { console.warn("LRCLIB lyrics fetch failed:", e); }
+    let lyrics = await fetchLyricsFromProviders(artistName, trackName);
+
+    // If primary metadata names fail, retry lyrics lookup with iTunes artist/title.
+    if (
+      !lyrics &&
+      itunesFallbackTrackName &&
+      itunesFallbackArtistName &&
+      (itunesFallbackTrackName !== trackName || itunesFallbackArtistName !== artistName)
+    ) {
+      lyrics = await fetchLyricsFromProviders(itunesFallbackArtistName, itunesFallbackTrackName);
     }
 
     // 3. Fetch Artist Info & Youtube Link via TasteDive API

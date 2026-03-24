@@ -1,5 +1,5 @@
 import { useAuth } from "../context/AuthContext";
-import { LogOut, User, Bell, Shield, Palette } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 export function Settings() {
   const { user, logout } = useAuth();
@@ -31,45 +31,7 @@ export function Settings() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Preferences</h3>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/10 dark:hover:border-white/10 cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-500 flex items-center justify-center">
-                  <Palette className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-zinc-900 dark:text-white">Appearance</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Match system theme</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/10 dark:hover:border-white/10 cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center">
-                  <Bell className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-zinc-900 dark:text-white">Notifications</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Manage alerts and emails</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/10 dark:hover:border-white/10 cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-500/20 text-green-500 flex items-center justify-center">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-zinc-900 dark:text-white">Privacy & Security</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Protect your account</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <div className="mt-12 pt-8 border-t border-black/10 dark:border-white/10">
             <button

@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Play, MoreHorizontal, Heart } from "lucide-react";
+import { Play, Heart } from "lucide-react";
 import { Track } from "../data";
 import clsx from "clsx";
 
@@ -118,9 +118,6 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, on
                   <span className="text-sm font-medium tabular-nums opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
                     {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}
                   </span>
-                  <button className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MoreHorizontal className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-                  </button>
                 </div>
               </motion.div>
             );

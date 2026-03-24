@@ -72,13 +72,17 @@ export function RootLayout() {
                      </div>
                   </div>
                   
-                  {currentTrack.lyrics ? (
+                  {currentTrack.lyricsStatus === "loading" ? (
+                    <div className="text-xl text-zinc-300 mt-12 py-12 w-full bg-white/5 rounded-2xl animate-pulse">
+                      Fetching lyrics...
+                    </div>
+                  ) : currentTrack.lyrics ? (
                     <div className="whitespace-pre-wrap text-2xl md:text-3xl font-bold leading-relaxed text-zinc-100/90 text-center">
                       {currentTrack.lyrics}
                     </div>
                   ) : (
                     <div className="text-xl text-zinc-400 italic mt-12 py-12 w-full bg-white/5 rounded-2xl">
-                      Could not find lyrics for this track automatically.
+                      {currentTrack.lyricsMessage || "Could not find lyrics for this track automatically."}
                     </div>
                   )}
                   

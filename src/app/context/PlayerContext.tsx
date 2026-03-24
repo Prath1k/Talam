@@ -7,6 +7,8 @@ export interface Track extends BaseTrack {
   songUrl?: string;
   lyrics?: string;
   fetchedMetadata?: boolean;
+  lyricsStatus?: "idle" | "loading" | "ready" | "not-found" | "error";
+  lyricsMessage?: string;
 }
 
 interface PlayerContextType {
@@ -48,6 +50,71 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [audio] = useState(new Audio());
   
   const currentTrack = tracks[currentTrackIndex] || mockTracks[0];
+
+  // Fetch metadata for the active track once and persist it in state.
+  useEffect(() => {
+    if (!currentTrack || currentTrack.fetchedMetadata) return;
+
+    let cancelled = false;
+    const trackId = currentTrack.id;
+    const trackTitle = currentTrack.title;
+
+    const enrichTrack = async () => {
+      setTracks((prev) =>
+        prev.map((track) =>
+          track.id === trackId
+            ? {
+                ...track,
+                lyricsStatus: "loading",
+                lyricsMessage: "Fetching lyrics...",
+              }
+            : track
+        )
+      );
+
+      const metadata = await fetchTrackMetadata(trackTitle);
+      if (cancelled) return;
+
+      setTracks((prev) =>
+        prev.map((track) => {
+          if (track.id !== trackId) return track;
+          if (!metadata) {
+            return {
+              ...track,
+              fetchedMetadata: true,
+              lyricsStatus: "error",
+              lyricsMessage: "Could not fetch metadata right now. Please try another track.",
+            };
+          }
+
+          const lyrics = (metadata.lyrics || "").trim();
+          const hasLyrics = Boolean(lyrics);
+
+          return {
+            ...track,
+            ...metadata,
+            lyrics,
+            // Keep existing local playback info stable.
+            id: track.id,
+            songUrl: track.songUrl,
+            duration: track.duration,
+            isFavourite: track.isFavourite,
+            fetchedMetadata: true,
+            lyricsStatus: hasLyrics ? "ready" : "not-found",
+            lyricsMessage: hasLyrics
+              ? ""
+              : "Could not find lyrics for this track automatically.",
+          };
+        })
+      );
+    };
+
+    enrichTrack();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack]);
 
   // Apply volume changes
   useEffect(() => {
