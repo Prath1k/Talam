@@ -28,6 +28,11 @@ interface PlayerContextType {
   handlePrev: () => void;
   handleTrackSelect: (id: string) => void;
   playDirectly: (track: Track) => void;
+  addToQueue: (track: Track) => void;
+  playNext: (track: Track) => void;
+  removeFromQueue: (id: string) => void;
+  reorderQueue: (fromQueueIndex: number, toQueueIndex: number) => void;
+  clearQueue: () => void;
   handleSeek: (time: number) => void;
   handleVolumeChange: (vol: number) => void;
   handleToggleFavourite: (id: string) => void;
@@ -81,6 +86,31 @@ function probeAudioDuration(src: string): Promise<number> {
   });
 }
 
+async function decodeAudioDuration(src: string): Promise<number> {
+  const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextCtor) return 0;
+
+  let audioContext: AudioContext | null = null;
+
+  try {
+    audioContext = new AudioContextCtor();
+    const response = await fetch(src);
+    if (!response.ok) return 0;
+
+    const buffer = await response.arrayBuffer();
+    const decoded = await audioContext.decodeAudioData(buffer.slice(0));
+    return Number.isFinite(decoded.duration) && decoded.duration > 0 ? decoded.duration : 0;
+  } catch {
+    return 0;
+  } finally {
+    if (audioContext) {
+      audioContext.close().catch(() => {
+        // Ignore close failures.
+      });
+    }
+  }
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<Track[]>(mockTracks);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -98,6 +128,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // Guard against invalid/infinite/broken container metadata.
     if (!Number.isFinite(value) || value <= 0 || value > 60 * 60 * 6) return 0;
     return value;
+  };
+
+  const normalizeSongDuration = (value: number) => {
+    const normalized = normalizeDuration(value);
+    // Songs above this are typically broken metadata for local mp4/webm containers.
+    if (normalized > 60 * 20) return 0;
+    return normalized;
   };
   
   const currentTrack = tracks[currentTrackIndex] || mockTracks[0];
@@ -193,9 +230,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const candidates = tracks.filter(
       (track) =>
-        Boolean(track.songUrl) &&
-        !measuredDurationIds.current.has(track.id) &&
-        (!track.duration || track.duration <= 180)
+        Boolean(track.songUrl && track.songUrl.startsWith("/music/")) &&
+        !measuredDurationIds.current.has(track.id)
     );
 
     if (candidates.length === 0) return;
@@ -203,12 +239,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     candidates.forEach((track) => {
       measuredDurationIds.current.add(track.id);
 
-      probeAudioDuration(track.songUrl as string).then((measured) => {
+      (async () => {
+        let measured = await decodeAudioDuration(track.songUrl as string);
+        if (!measured) {
+          measured = await probeAudioDuration(track.songUrl as string);
+        }
+
+        return normalizeSongDuration(measured);
+      })().then((measured) => {
         if (cancelled || measured <= 0) return;
 
         const rounded = Math.max(1, Math.round(measured));
         setTracks((prev) =>
-          prev.map((item) => (item.id === track.id ? { ...item, duration: rounded } : item))
+          prev.map((item) => {
+            if (item.id !== track.id) return item;
+
+            // Avoid noisy rerenders when the measured value is effectively the same.
+            if (Math.abs((item.duration || 0) - rounded) <= 1) return item;
+
+            return { ...item, duration: rounded };
+          })
         );
       });
     });
@@ -224,7 +274,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.src = currentTrack.songUrl;
       audio.load();
       setProgress(0);
-      setDuration(0);
+      setDuration(currentTrack.duration || 0);
       if (isPlaying) {
         audio.play().catch(e => {
            console.error("Audio playback error:", e);
@@ -257,28 +307,74 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (currentTrack.songUrl) {
       const updateProgress = () => {
         setProgress(audio.currentTime);
-
-        const measuredDuration = normalizeDuration(audio.duration);
-        if (measuredDuration > 0) {
-          setDuration(measuredDuration);
-          setTracks((prev) =>
-            prev.map((track) =>
-              track.id === currentTrack.id
-                ? { ...track, duration: Math.max(1, Math.round(measuredDuration)) }
-                : track
-            )
-          );
-        }
       };
       
       const handleLoadedMetadata = () => {
-        const measuredDuration = normalizeDuration(audio.duration);
+        const isLocalSong = Boolean(currentTrack.songUrl?.startsWith("/music/"));
+        const measuredDuration = isLocalSong
+          ? normalizeSongDuration(audio.duration)
+          : normalizeDuration(audio.duration);
+        const knownDuration = isLocalSong
+          ? normalizeSongDuration(currentTrack.duration || 0)
+          : normalizeDuration(currentTrack.duration || 0);
+
+        const resolvedDuration =
+          measuredDuration > 0
+            ? knownDuration > 0 && measuredDuration > knownDuration * 2
+              ? knownDuration
+              : measuredDuration
+            : knownDuration;
+
+        if (resolvedDuration > 0) {
+          setDuration(resolvedDuration);
+
+          // Update track duration only when the value is trustworthy.
+          if (measuredDuration > 0) {
+            const rounded = Math.max(1, Math.round(resolvedDuration));
+            const canUpdateTrack = knownDuration === 0 || measuredDuration <= knownDuration * 2;
+
+            if (canUpdateTrack) {
+              setTracks((prev) =>
+                prev.map((track) =>
+                  track.id === currentTrack.id
+                    ? { ...track, duration: rounded }
+                    : track
+                )
+              );
+            }
+          }
+        } else {
+          setDuration(0);
+        }
+      };
+
+      const handleDurationChange = () => {
+        const isLocalSong = Boolean(currentTrack.songUrl?.startsWith("/music/"));
+        const measuredDuration = isLocalSong
+          ? normalizeSongDuration(audio.duration)
+          : normalizeDuration(audio.duration);
+        const knownDuration = isLocalSong
+          ? normalizeSongDuration(currentTrack.duration || 0)
+          : normalizeDuration(currentTrack.duration || 0);
+
         if (measuredDuration > 0) {
-          setDuration(measuredDuration);
+          const resolvedDuration =
+            knownDuration > 0 && measuredDuration > knownDuration * 2
+              ? knownDuration
+              : measuredDuration;
+
+          setDuration(resolvedDuration || knownDuration || 0);
+
           setTracks((prev) =>
             prev.map((track) =>
               track.id === currentTrack.id
-                ? { ...track, duration: Math.max(1, Math.round(measuredDuration)) }
+                ? {
+                    ...track,
+                    duration:
+                      knownDuration > 0 && measuredDuration > knownDuration * 2
+                        ? Math.max(1, Math.round(knownDuration))
+                        : Math.max(1, Math.round(measuredDuration)),
+                  }
                 : track
             )
           );
@@ -313,12 +409,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       audio.addEventListener("timeupdate", updateProgress);
       audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.addEventListener("durationchange", handleDurationChange);
       audio.addEventListener("ended", handleEnded);
       audio.addEventListener("error", handleError);
       
       return () => {
         audio.removeEventListener("timeupdate", updateProgress);
         audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        audio.removeEventListener("durationchange", handleDurationChange);
         audio.removeEventListener("ended", handleEnded);
         audio.removeEventListener("error", handleError);
       };
@@ -414,6 +512,88 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true);
   };
 
+  const addToQueue = (track: Track) => {
+    setTracks((prev) => {
+      if (prev.some((item) => item.id === track.id)) return prev;
+      return [...prev, { ...track, isFavourite: track.isFavourite ?? false }];
+    });
+  };
+
+  const playNext = (track: Track) => {
+    setTracks((prev) => {
+      const normalizedTrack = { ...track, isFavourite: track.isFavourite ?? false };
+      const list = [...prev];
+      const existingIndex = list.findIndex((item) => item.id === normalizedTrack.id);
+      let nextCurrentIndex = currentTrackIndex;
+
+      if (existingIndex !== -1) {
+        const [existingTrack] = list.splice(existingIndex, 1);
+
+        if (existingIndex < currentTrackIndex) {
+          nextCurrentIndex = Math.max(0, currentTrackIndex - 1);
+        }
+
+        const insertAt = Math.min(nextCurrentIndex + 1, list.length);
+        list.splice(insertAt, 0, existingTrack);
+      } else {
+        const insertAt = Math.min(nextCurrentIndex + 1, list.length);
+        list.splice(insertAt, 0, normalizedTrack);
+      }
+
+      if (nextCurrentIndex !== currentTrackIndex) {
+        setCurrentTrackIndex(nextCurrentIndex);
+      }
+
+      return list;
+    });
+  };
+
+  const removeFromQueue = (id: string) => {
+    setTracks((prev) => {
+      if (prev.length <= 1) return prev;
+
+      const removeIndex = prev.findIndex((track) => track.id === id);
+      if (removeIndex === -1) return prev;
+
+      const nextTracks = prev.filter((track) => track.id !== id);
+
+      setCurrentTrackIndex((prevIndex) => {
+        if (removeIndex < prevIndex) return prevIndex - 1;
+        if (removeIndex === prevIndex) return Math.min(prevIndex, nextTracks.length - 1);
+        return prevIndex;
+      });
+
+      return nextTracks;
+    });
+  };
+
+  const reorderQueue = (fromQueueIndex: number, toQueueIndex: number) => {
+    setTracks((prev) => {
+      const queueStart = currentTrackIndex + 1;
+      const fromIndex = queueStart + fromQueueIndex;
+      const toIndex = queueStart + toQueueIndex;
+
+      if (
+        fromIndex < queueStart ||
+        toIndex < queueStart ||
+        fromIndex >= prev.length ||
+        toIndex >= prev.length ||
+        fromIndex === toIndex
+      ) {
+        return prev;
+      }
+
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const clearQueue = () => {
+    setTracks((prev) => prev.slice(0, currentTrackIndex + 1));
+  };
+
   return (
     <PlayerContext.Provider
       value={{
@@ -433,6 +613,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         handlePrev,
         handleTrackSelect,
         playDirectly,
+        addToQueue,
+        playNext,
+        removeFromQueue,
+        reorderQueue,
+        clearQueue,
         handleSeek,
         handleVolumeChange,
         handleToggleFavourite,
