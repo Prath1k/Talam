@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Maximize2, Mic2, Heart } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Maximize2, Mic2, Heart, ListMusic } from "lucide-react";
 import { Track } from "../data";
 import clsx from "clsx";
 
@@ -20,6 +20,9 @@ interface ControlsProps {
   onToggleShuffle: () => void;
   onToggleRepeat: () => void;
   onToggleFavourite: (id: string) => void;
+  onToggleQueue: () => void;
+  queueCount: number;
+  isQueueOpen: boolean;
 }
 
 export function Controls({
@@ -40,6 +43,9 @@ export function Controls({
   onToggleShuffle,
   onToggleRepeat,
   onToggleFavourite,
+  onToggleQueue,
+  queueCount,
+  isQueueOpen,
 }: ControlsProps) {
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
 
@@ -56,7 +62,7 @@ export function Controls({
       {/* Mobile Progress Bar (Absolute Top) */}
       <div className="md:hidden absolute top-0 left-0 w-full h-[2px] bg-black/5 dark:bg-white/5">
         <div 
-          className="h-full bg-rose-500 transition-all duration-1000 ease-linear"
+          className="h-full bg-rose-500 transition-all duration-500 ease-out"
           style={{ width: `${progressPercent}%` }}
         />
         <input 
@@ -92,7 +98,7 @@ export function Controls({
             <button 
               onClick={() => onToggleFavourite(currentTrack.id)}
               className={clsx(
-                "transition-all hover:scale-110 active:scale-95",
+                "transition-all duration-200 smooth-interactive",
                 currentTrack.isFavourite ? "text-rose-500 fill-rose-500" : "text-zinc-400 hover:text-rose-500"
               )}
             >
@@ -111,7 +117,7 @@ export function Controls({
           <button 
             onClick={onToggleShuffle}
             className={clsx(
-              "hidden md:block transition-colors",
+              "hidden md:block transition-colors duration-200 smooth-interactive",
               isShuffle ? "text-rose-500" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
             )}
             title="Shuffle"
@@ -121,14 +127,14 @@ export function Controls({
           
           <button 
             onClick={onPrev}
-            className="hidden md:block text-zinc-900 dark:text-zinc-100 hover:scale-110 active:scale-95 transition-all"
+            className="hidden md:block text-zinc-900 dark:text-zinc-100 transition-all duration-200 smooth-interactive"
           >
             <SkipBack className="w-5 h-5 md:w-6 md:h-6 fill-current" />
           </button>
           
           <button
             onClick={onPlayPause}
-            className="w-10 h-10 md:w-10 md:h-10 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shrink-0"
+            className="w-10 h-10 md:w-10 md:h-10 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center transition-all duration-200 shadow-lg shrink-0 smooth-interactive"
           >
             {isPlaying ? (
               <Pause className="w-4 h-4 md:w-5 md:h-5 fill-current" />
@@ -139,15 +145,31 @@ export function Controls({
           
           <button 
             onClick={onNext}
-            className="text-zinc-900 dark:text-zinc-100 hover:scale-110 active:scale-95 transition-all"
+            className="text-zinc-900 dark:text-zinc-100 transition-all duration-200 smooth-interactive"
           >
             <SkipForward className="w-5 h-5 md:w-6 md:h-6 fill-current" />
+          </button>
+
+          <button
+            onClick={onToggleQueue}
+            className={clsx(
+              "md:hidden relative text-zinc-900 dark:text-zinc-100 transition-all duration-200 smooth-interactive",
+              isQueueOpen ? "text-rose-500" : ""
+            )}
+            title="Queue"
+          >
+            <ListMusic className="w-5 h-5" />
+            {queueCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-4 text-center">
+                {queueCount}
+              </span>
+            )}
           </button>
           
           <button 
             onClick={onToggleRepeat}
             className={clsx(
-              "hidden md:block transition-all relative",
+              "hidden md:block transition-all duration-200 relative smooth-interactive",
               repeatMode !== "off" ? "text-rose-500" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
             )}
             title={`Repeat: ${repeatMode}`}
@@ -164,7 +186,7 @@ export function Controls({
           <span className="w-10 text-right">{formatTime(progress)}</span>
           <div className="flex-1 relative h-1.5 bg-black/10 dark:bg-white/10 rounded-full cursor-pointer group flex items-center">
             <div 
-              className="absolute left-0 h-full bg-rose-500 rounded-full group-hover:bg-rose-400 pointer-events-none"
+              className="absolute left-0 h-full bg-rose-500 rounded-full group-hover:bg-rose-400 pointer-events-none transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             >
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity translate-x-1.5 pointer-events-none" />
@@ -184,20 +206,36 @@ export function Controls({
 
       {/* Right Controls */}
       <div className="hidden md:flex items-center justify-end gap-4 w-1/4 text-zinc-400">
+         <button
+           onClick={onToggleQueue}
+           className={clsx(
+             "relative transition-colors duration-200 smooth-interactive",
+             isQueueOpen ? "text-rose-500" : "hover:text-zinc-900 dark:hover:text-zinc-100"
+           )}
+           title="Queue"
+         >
+           <ListMusic className="w-4 h-4" />
+           {queueCount > 0 && (
+             <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-4 text-center">
+               {queueCount}
+             </span>
+           )}
+         </button>
+
          <button 
            onClick={onToggleLyrics}
            className={clsx(
-             "transition-colors", 
+             "transition-colors duration-200 smooth-interactive", 
              showLyrics ? "text-rose-500" : "hover:text-zinc-900 dark:hover:text-zinc-100"
            )}
          >
              <Mic2 className="w-4 h-4" />
          </button>
         <div className="flex items-center gap-2 w-32 group">
-          <Volume2 className="w-4 h-4 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer" />
+          <Volume2 className="w-4 h-4 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-200 cursor-pointer" />
           <div className="flex-1 relative h-1.5 bg-black/10 dark:bg-white/10 rounded-full cursor-pointer flex items-center">
             <div 
-              className="absolute left-0 h-full bg-zinc-400 rounded-full group-hover:bg-rose-500 transition-colors pointer-events-none" 
+              className="absolute left-0 h-full bg-zinc-400 rounded-full group-hover:bg-rose-500 transition-colors duration-300 pointer-events-none" 
               style={{ width: `${volume * 100}%` }}
             />
             <input 
