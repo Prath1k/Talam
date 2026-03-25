@@ -1,7 +1,15 @@
 import { motion } from "motion/react";
-import { Play, Heart } from "lucide-react";
+import { Play, Heart, MoreHorizontal, ListPlus, Trash2 } from "lucide-react";
 import { Track } from "../data";
 import clsx from "clsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+
+const LIST_TRANSITION = { duration: 0.34, ease: [0.22, 1, 0.36, 1] as const };
 
 interface TrackListProps {
   tracks: Track[];
@@ -9,9 +17,19 @@ interface TrackListProps {
   isPlaying: boolean;
   onTrackSelect: (id: string) => void;
   onToggleFavourite: (id: string) => void;
+  onPlayNext: (track: Track) => void;
+  onRemoveFromQueue: (id: string) => void;
 }
 
-export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, onToggleFavourite }: TrackListProps) {
+export function TrackList({
+  tracks,
+  currentTrackId,
+  isPlaying,
+  onTrackSelect,
+  onToggleFavourite,
+  onPlayNext,
+  onRemoveFromQueue,
+}: TrackListProps) {
   const formatDuration = (seconds: number) => {
     if (!seconds || seconds <= 0) return "--:--";
     const safe = Math.max(0, Math.round(seconds || 0));
@@ -22,7 +40,12 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, on
 
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white/60 dark:bg-black/60 backdrop-blur-xl p-8 lg:p-12 relative z-10 custom-scrollbar border-l border-white/20">
-      <div className="max-w-3xl mx-auto">
+      <motion.div
+        className="max-w-3xl mx-auto"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={LIST_TRANSITION}
+      >
         <h1 className="text-3xl font-extrabold tracking-tight mb-8 text-zinc-900 dark:text-zinc-100">
           Up Next
         </h1>
@@ -48,14 +71,14 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, on
               <motion.div
                 key={track.id}
                 variants={{
-                  hidden: { opacity: 0, y: 10 },
+                  hidden: { opacity: 0, y: 8, scale: 0.99 },
                   visible: { opacity: 1, y: 0 }
                 }}
                 onClick={() => onTrackSelect(track.id)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.997 }}
                 className={clsx(
-                  "flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all group relative overflow-hidden",
+                  "flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all duration-300 group relative overflow-hidden smooth-card",
                   isCurrent
                     ? "bg-white/40 dark:bg-white/10 shadow-sm border border-white/50 dark:border-white/10"
                     : "hover:bg-black/5 dark:hover:bg-white/5 border border-transparent"
@@ -111,13 +134,51 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, on
                 </div>
 
                 <div className="flex items-center gap-4 text-zinc-400">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity smooth-interactive"
+                        aria-label={`More actions for ${track.title}`}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onPlayNext(track);
+                        }}
+                      >
+                        <ListPlus className="w-4 h-4" />
+                        Play Next
+                      </DropdownMenuItem>
+                      {track.id !== currentTrackId && (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            onRemoveFromQueue(track.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Remove from Queue
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   <Heart 
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleFavourite(track.id);
                     }}
                     className={clsx(
-                      "w-4 h-4 transition-all cursor-pointer hover:scale-110 active:scale-95",
+                      "w-4 h-4 transition-all duration-200 cursor-pointer hover:scale-110 active:scale-95 smooth-interactive",
                       track.isFavourite 
                         ? "text-rose-500 fill-rose-500 opacity-100" 
                         : "opacity-0 group-hover:opacity-100 hover:text-rose-500"
@@ -131,7 +192,7 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, on
             );
           })}
         </motion.div>
-      </div>
+      </motion.div>
     </div>
   );
 }
