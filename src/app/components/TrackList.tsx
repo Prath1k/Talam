@@ -12,6 +12,14 @@ interface TrackListProps {
 }
 
 export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, onToggleFavourite }: TrackListProps) {
+  const formatDuration = (seconds: number) => {
+    if (!seconds || seconds <= 0) return "--:--";
+    const safe = Math.max(0, Math.round(seconds || 0));
+    const mins = Math.floor(safe / 60);
+    const secs = safe % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  };
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white/60 dark:bg-black/60 backdrop-blur-xl p-8 lg:p-12 relative z-10 custom-scrollbar border-l border-white/20">
       <div className="max-w-3xl mx-auto">
@@ -116,7 +124,7 @@ export function TrackList({ tracks, currentTrackId, isPlaying, onTrackSelect, on
                     )} 
                   />
                   <span className="text-sm font-medium tabular-nums opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
-                    {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}
+                    {formatDuration(track.duration)}
                   </span>
                 </div>
               </motion.div>

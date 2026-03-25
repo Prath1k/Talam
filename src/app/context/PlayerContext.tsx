@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { mockTracks, Track as BaseTrack } from "../data";
 import { supabase } from "../utils/supabase";
 import { fetchTrackMetadata } from "../utils/metadata";
@@ -37,6 +37,50 @@ interface PlayerContextType {
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
+function probeAudioDuration(src: string): Promise<number> {
+  return new Promise((resolve) => {
+    const probe = new Audio();
+    probe.preload = "metadata";
+    probe.src = src;
+
+    const cleanup = () => {
+      probe.removeEventListener("loadedmetadata", onLoadedMetadata);
+      probe.removeEventListener("timeupdate", onTimeUpdate);
+      probe.removeEventListener("error", onError);
+      clearTimeout(timeout);
+      probe.src = "";
+    };
+
+    const finish = (value: number) => {
+      cleanup();
+      resolve(value > 0 && Number.isFinite(value) ? value : 0);
+    };
+
+    const onTimeUpdate = () => {
+      if (Number.isFinite(probe.duration) && probe.duration > 0) {
+        finish(probe.duration);
+      }
+    };
+
+    const onLoadedMetadata = () => {
+      if (Number.isFinite(probe.duration) && probe.duration > 0) {
+        finish(probe.duration);
+      } else {
+        // Some containers report Infinity initially; seeking forces real duration.
+        probe.currentTime = 1e101;
+      }
+    };
+
+    const onError = () => finish(0);
+
+    const timeout = setTimeout(() => finish(0), 10000);
+
+    probe.addEventListener("loadedmetadata", onLoadedMetadata);
+    probe.addEventListener("timeupdate", onTimeUpdate);
+    probe.addEventListener("error", onError);
+  });
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<Track[]>(mockTracks);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -48,12 +92,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"off" | "one" | "all">("off");
   const [audio] = useState(new Audio());
+  const measuredDurationIds = useRef<Set<string>>(new Set());
+
+  const normalizeDuration = (value: number) => {
+    // Guard against invalid/infinite/broken container metadata.
+    if (!Number.isFinite(value) || value <= 0 || value > 60 * 60 * 6) return 0;
+    return value;
+  };
   
   const currentTrack = tracks[currentTrackIndex] || mockTracks[0];
 
   // Fetch metadata for the active track once and persist it in state.
   useEffect(() => {
-    if (!currentTrack || currentTrack.fetchedMetadata) return;
+    if (!currentTrack || currentTrack.fetchedMetadata || currentTrack.lyricsStatus === "loading") return;
 
     let cancelled = false;
     const trackId = currentTrack.id;
@@ -114,7 +165,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [currentTrack]);
+  }, [currentTrack.id, currentTrack.title]);
 
   // Apply volume changes
   useEffect(() => {
@@ -136,11 +187,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     fetchTracks();
   }, []);
 
+  // Resolve real durations for local audio so Up Next doesn't keep fallback times.
+  useEffect(() => {
+    let cancelled = false;
+
+    const candidates = tracks.filter(
+      (track) =>
+        Boolean(track.songUrl) &&
+        !measuredDurationIds.current.has(track.id) &&
+        (!track.duration || track.duration <= 180)
+    );
+
+    if (candidates.length === 0) return;
+
+    candidates.forEach((track) => {
+      measuredDurationIds.current.add(track.id);
+
+      probeAudioDuration(track.songUrl as string).then((measured) => {
+        if (cancelled || measured <= 0) return;
+
+        const rounded = Math.max(1, Math.round(measured));
+        setTracks((prev) =>
+          prev.map((item) => (item.id === track.id ? { ...item, duration: rounded } : item))
+        );
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tracks]);
+
   // Handle actual Audio playback
   useEffect(() => {
     if (currentTrack.songUrl) {
       audio.src = currentTrack.songUrl;
       audio.load();
+      setProgress(0);
+      setDuration(0);
       if (isPlaying) {
         audio.play().catch(e => {
            console.error("Audio playback error:", e);
@@ -168,23 +252,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // Audio time update or simulated progress
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setInterval>;
     
     if (currentTrack.songUrl) {
       const updateProgress = () => {
-        if (!isNaN(audio.duration) && audio.duration > 0) {
-            setProgress(audio.currentTime);
-            setDuration(audio.duration);
+        setProgress(audio.currentTime);
+
+        const measuredDuration = normalizeDuration(audio.duration);
+        if (measuredDuration > 0) {
+          setDuration(measuredDuration);
+          setTracks((prev) =>
+            prev.map((track) =>
+              track.id === currentTrack.id
+                ? { ...track, duration: Math.max(1, Math.round(measuredDuration)) }
+                : track
+            )
+          );
         }
       };
       
       const handleLoadedMetadata = () => {
-         if (!isNaN(audio.duration)) {
-             setDuration(audio.duration);
-         }
+        const measuredDuration = normalizeDuration(audio.duration);
+        if (measuredDuration > 0) {
+          setDuration(measuredDuration);
+          setTracks((prev) =>
+            prev.map((track) =>
+              track.id === currentTrack.id
+                ? { ...track, duration: Math.max(1, Math.round(measuredDuration)) }
+                : track
+            )
+          );
+        }
       };
 
       const handleEnded = () => {
+        // If metadata duration was bad, trust the actual played time at end.
+        const playedDuration = Math.max(1, Math.round(audio.currentTime || 0));
+        if (playedDuration > 0) {
+          setDuration(playedDuration);
+          setProgress(playedDuration);
+          setTracks((prev) =>
+            prev.map((track) =>
+              track.id === currentTrack.id ? { ...track, duration: playedDuration } : track
+            )
+          );
+        }
+
         if (repeatMode === "one") {
           audio.currentTime = 0;
           audio.play();

@@ -1,4 +1,6 @@
 // Get API keys from environment
+import { getCachedMetadata, cacheMetadata } from "./cacheMetadata";
+
 const KSOFT_API_KEY = import.meta.env.VITE_KSOFT_API_KEY || "";
 const TASTEDIVE_API_KEY = import.meta.env.VITE_TASTEDIVE_API_KEY || "";
 
@@ -119,7 +121,22 @@ export async function fetchTrackMetadata(title: string) {
     // If we still found nothing, we can't proceed with enhancements
     if (!trackName) return null;
 
-    // 2. Fetch lyrics (KSoft -> Lyrics.ovh -> LRCLIB)
+    // 2. Check cache first before fetching lyrics
+    const cached = await getCachedMetadata(trackName, artistName);
+    if (cached && cached.lyrics) {
+      console.log("Using cached metadata for:", `${artistName} - ${trackName}`);
+      return {
+        title: trackName,
+        artist: artistName,
+        album: albumName,
+        coverUrl: cached.cover_url || highResCover || "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+        lyrics: cached.lyrics,
+        artistInfo: cached.artist_info,
+        youtubeUrl: cached.youtube_url
+      };
+    }
+
+    // 3. Fetch lyrics (KSoft -> Lyrics.ovh -> LRCLIB)
     let lyrics = await fetchLyricsFromProviders(artistName, trackName);
 
     // If primary metadata names fail, retry lyrics lookup with iTunes artist/title.
@@ -132,7 +149,7 @@ export async function fetchTrackMetadata(title: string) {
       lyrics = await fetchLyricsFromProviders(itunesFallbackArtistName, itunesFallbackTrackName);
     }
 
-    // 3. Fetch Artist Info & Youtube Link via TasteDive API
+    // 4. Fetch Artist Info & Youtube Link via TasteDive API
     let artistInfo = "";
     let youtubeUrl = "";
     
@@ -151,11 +168,24 @@ export async function fetchTrackMetadata(title: string) {
       } catch (e) { console.warn("TasteDive fetch failed:", e); }
     }
 
+    const finalCoverUrl = highResCover || "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080";
+
+    // 5. Save to cache for future use
+    await cacheMetadata({
+      title: trackName,
+      artist: artistName,
+      lyrics: lyrics,
+      cover_url: finalCoverUrl,
+      artist_info: artistInfo,
+      youtube_url: youtubeUrl,
+      album_name: albumName,
+    });
+
     return {
        title: trackName,
        artist: artistName,
        album: albumName,
-       coverUrl: highResCover || "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+       coverUrl: finalCoverUrl,
        lyrics: lyrics,
        artistInfo: artistInfo,
        youtubeUrl: youtubeUrl

@@ -41,6 +41,8 @@ export function Controls({
   onToggleRepeat,
   onToggleFavourite,
 }: ControlsProps) {
+  const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
+
   // Format seconds to mm:ss
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || seconds < 0) return "0:00";
@@ -55,7 +57,7 @@ export function Controls({
       <div className="md:hidden absolute top-0 left-0 w-full h-[2px] bg-black/5 dark:bg-white/5">
         <div 
           className="h-full bg-rose-500 transition-all duration-1000 ease-linear"
-          style={{ width: `${(progress / duration) * 100}%` }}
+          style={{ width: `${progressPercent}%` }}
         />
         <input 
           type="range"
@@ -163,7 +165,7 @@ export function Controls({
           <div className="flex-1 relative h-1.5 bg-black/10 dark:bg-white/10 rounded-full cursor-pointer group flex items-center">
             <div 
               className="absolute left-0 h-full bg-rose-500 rounded-full group-hover:bg-rose-400 pointer-events-none"
-              style={{ width: `${(progress / duration) * 100}%` }}
+              style={{ width: `${progressPercent}%` }}
             >
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity translate-x-1.5 pointer-events-none" />
             </div>
