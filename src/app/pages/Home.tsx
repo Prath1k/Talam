@@ -10,8 +10,22 @@ import clsx from "clsx";
 
 type VisualizerType = "vinyl" | "mp3";
 
+const LAYOUT_EASE = [0.22, 1, 0.36, 1] as const;
+
 export function Home() {
-  const { tracks, currentTrack, isPlaying, handleTrackSelect, handleNext, handlePrev, handlePlayPause, progress, handleToggleFavourite } = usePlayer();
+  const {
+    tracks,
+    currentTrack,
+    isPlaying,
+    handleTrackSelect,
+    handleNext,
+    handlePrev,
+    handlePlayPause,
+    progress,
+    handleToggleFavourite,
+    playNext,
+    removeFromQueue,
+  } = usePlayer();
   const [visualizer, setVisualizer] = useState<VisualizerType>("vinyl");
   
   // TrackList collapse state
@@ -23,6 +37,14 @@ export function Home() {
       setIsUpNextOpen(false);
     }
   }, []);
+
+  // When queue exists, keep the dedicated player experience visible.
+  useEffect(() => {
+    if (tracks.length > 1) {
+      setIsUpNextOpen(true);
+      setVisualizer("vinyl");
+    }
+  }, [tracks.length]);
 
   const renderVisualizer = () => {
     switch (visualizer) {
@@ -58,7 +80,7 @@ export function Home() {
       {/* Desktop Toggle Button - Positioned absolutely at the top-right of the main content area */}
       <button
         onClick={() => setIsUpNextOpen(!isUpNextOpen)}
-        className="hidden lg:flex absolute top-6 right-6 z-50 items-center gap-2 bg-white/20 dark:bg-black/40 backdrop-blur-xl px-4 py-2.5 rounded-full border border-black/10 dark:border-white/10 shadow-lg text-zinc-700 dark:text-zinc-300 hover:bg-white/30 dark:hover:bg-black/60 transition-all"
+          className="hidden lg:flex absolute top-6 right-6 z-50 items-center gap-2 bg-white/20 dark:bg-black/40 backdrop-blur-xl px-4 py-2.5 rounded-full border border-black/10 dark:border-white/10 shadow-lg text-zinc-700 dark:text-zinc-300 hover:bg-white/30 dark:hover:bg-black/60 transition-all duration-300 smooth-interactive"
         title={isUpNextOpen ? "Hide Up Next" : "Show Up Next"}
       >
         <ListMusic className="w-5 h-5" />
@@ -69,6 +91,7 @@ export function Home() {
       {/* Visualizer Section */}
       <motion.div 
         layout
+        transition={{ duration: 0.42, ease: LAYOUT_EASE }}
         className={clsx(
           "relative flex flex-col z-10",
           isUpNextOpen ? "h-[50vh] lg:h-full lg:w-1/2 flex-shrink-0" : "h-full w-full flex-1"
@@ -87,7 +110,7 @@ export function Home() {
             <button
               onClick={() => setVisualizer("vinyl")}
               className={clsx(
-                "p-2.5 rounded-full transition-all duration-300 relative z-10",
+                "p-2.5 rounded-full transition-all duration-300 relative z-10 smooth-interactive",
                 visualizer === "vinyl" 
                   ? "text-rose-500" 
                   : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
@@ -96,13 +119,17 @@ export function Home() {
             >
               <Disc className="w-5 h-5 relative z-20" />
               {visualizer === "vinyl" && (
-                <motion.div layoutId="visualizer-pill" className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm rounded-full z-10" />
+                <motion.div
+                  layoutId="visualizer-pill"
+                  transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm rounded-full z-10"
+                />
               )}
             </button>
             <button
               onClick={() => setVisualizer("mp3")}
               className={clsx(
-                "p-2.5 rounded-full transition-all duration-300 relative z-10",
+                "p-2.5 rounded-full transition-all duration-300 relative z-10 smooth-interactive",
                 visualizer === "mp3" 
                   ? "text-rose-500" 
                   : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
@@ -111,7 +138,11 @@ export function Home() {
             >
               <PlaySquare className="w-5 h-5 relative z-20" />
               {visualizer === "mp3" && (
-                <motion.div layoutId="visualizer-pill" className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm rounded-full z-10" />
+                <motion.div
+                  layoutId="visualizer-pill"
+                  transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm rounded-full z-10"
+                />
               )}
             </button>
           </div>
@@ -120,7 +151,7 @@ export function Home() {
         {/* Mobile Toggle Button (Floating at bottom of visualizer area) */}
         <button
           onClick={() => setIsUpNextOpen(!isUpNextOpen)}
-          className="lg:hidden absolute bottom-6 right-4 z-50 flex items-center gap-2 bg-white/40 dark:bg-black/60 backdrop-blur-xl p-2.5 sm:px-4 sm:py-2.5 rounded-full border border-black/10 dark:border-white/10 shadow-lg text-zinc-800 dark:text-zinc-200"
+          className="lg:hidden absolute bottom-6 right-4 z-50 flex items-center gap-2 bg-white/40 dark:bg-black/60 backdrop-blur-xl p-2.5 sm:px-4 sm:py-2.5 rounded-full border border-black/10 dark:border-white/10 shadow-lg text-zinc-800 dark:text-zinc-200 smooth-interactive"
         >
           <ListMusic className="w-5 h-5" />
           <span className="hidden sm:inline font-medium text-sm text-shadow-sm">Up Next</span>
@@ -132,9 +163,10 @@ export function Home() {
       <AnimatePresence>
         {isUpNextOpen && (
           <motion.div
-            initial={{ opacity: 0, flex: 0 }}
-            animate={{ opacity: 1, flex: 1 }}
-            exit={{ opacity: 0, flex: 0 }}
+            initial={{ opacity: 0, x: 14, flex: 0 }}
+            animate={{ opacity: 1, x: 0, flex: 1 }}
+            exit={{ opacity: 0, x: 10, flex: 0 }}
+            transition={{ duration: 0.34, ease: LAYOUT_EASE }}
             className="flex flex-col overflow-hidden w-full lg:w-1/2 lg:h-full z-20"
           >
             <TrackList
@@ -143,6 +175,8 @@ export function Home() {
               isPlaying={isPlaying}
               onTrackSelect={handleTrackSelect}
               onToggleFavourite={handleToggleFavourite}
+              onPlayNext={playNext}
+              onRemoveFromQueue={removeFromQueue}
             />
           </motion.div>
         )}
