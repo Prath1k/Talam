@@ -1,19 +1,54 @@
 import { Outlet, NavLink, useLocation } from "react-router";
+import { useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Controls } from "../components/Controls";
 import { usePlayer } from "../context/PlayerContext";
-import { Home as HomeIcon, LayoutGrid, Radio as RadioIcon, Settings as SettingsIcon } from "lucide-react";
+import { Home as HomeIcon, LayoutGrid, Radio as RadioIcon, Settings as SettingsIcon, X, Play, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "motion/react";
 
 export function RootLayout() {
   const { 
-    currentTrack, isPlaying, progress, duration, volume, 
+    tracks, currentTrack, currentTrackIndex, isPlaying, progress, duration, volume,
     handlePlayPause, handleNext, handlePrev, handleSeek, 
     handleVolumeChange, toggleLyrics, showLyrics,
-    isShuffle, repeatMode, handleToggleShuffle, handleToggleRepeat, handleToggleFavourite 
+    isShuffle, repeatMode, handleToggleShuffle, handleToggleRepeat, handleToggleFavourite,
+    handleTrackSelect, removeFromQueue, reorderQueue, clearQueue,
   } = usePlayer();
   const location = useLocation();
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [draggedQueueIndex, setDraggedQueueIndex] = useState<number | null>(null);
+
+  const upNextTracks = tracks.slice(currentTrackIndex + 1);
+
+  const handleSaveQueueAsPlaylist = () => {
+    if (upNextTracks.length === 0) return;
+
+    const suggestedName = `Queue ${new Date().toLocaleDateString()}`;
+    const name = window.prompt("Save queue as playlist", suggestedName)?.trim();
+    if (!name) return;
+
+    const key = "talam_saved_queue_playlists_v1";
+    const existing = (() => {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    const payload = {
+      id: `saved-${Date.now()}`,
+      title: name,
+      tracks: upNextTracks,
+      coverUrl: upNextTracks[0]?.coverUrl || "",
+      createdAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(key, JSON.stringify([payload, ...existing]));
+    window.dispatchEvent(new CustomEvent("talam:saved-playlists-updated"));
+  };
 
   return (
     <div className="flex h-[100dvh] w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans text-zinc-900 dark:text-zinc-50 relative selection:bg-rose-500/30">
@@ -44,7 +79,126 @@ export function RootLayout() {
       <main className="flex-1 flex flex-col min-w-0 z-10 relative shadow-[inset_1px_0_0_rgba(0,0,0,0.1)] overflow-hidden">
         {/* Main Content Area via Router */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          <Outlet />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="flex-1 overflow-hidden"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Global Queue Drawer */}
+          <AnimatePresence>
+            {isQueueOpen && (
+              <>
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsQueueOpen(false)}
+                  className="md:hidden absolute inset-0 bg-black/40 z-30"
+                  aria-label="Close queue drawer"
+                />
+
+                <motion.aside
+                  initial={{ opacity: 0, y: 24, x: 0 }}
+                  animate={{ opacity: 1, y: 0, x: 0 }}
+                  exit={{ opacity: 0, y: 24, x: 0 }}
+                  transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute left-0 right-0 bottom-20 h-[62vh] rounded-t-2xl md:rounded-none md:top-0 md:right-0 md:left-auto md:bottom-28 md:h-auto md:w-[390px] bg-white/90 dark:bg-zinc-900/92 backdrop-blur-2xl border-t md:border-t-0 md:border-l border-black/10 dark:border-white/10 z-40 flex flex-col"
+                >
+                <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10">
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Queue</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{upNextTracks.length} songs up next</p>
+                  </div>
+                  <button
+                    onClick={() => setIsQueueOpen(false)}
+                    className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 smooth-interactive"
+                    aria-label="Close queue"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="px-5 py-3 border-b border-black/5 dark:border-white/5 flex items-center gap-2">
+                  <button
+                    onClick={handleSaveQueueAsPlaylist}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-200 smooth-interactive"
+                  >
+                    Save Queue as Playlist
+                  </button>
+                  <button
+                    onClick={clearQueue}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-200 smooth-interactive"
+                  >
+                    Clear Queue
+                  </button>
+                </div>
+
+                <div className="px-5 py-4 border-b border-black/5 dark:border-white/5">
+                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Now Playing</p>
+                  <div className="flex items-center gap-3">
+                    <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-12 h-12 rounded-md object-cover" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{currentTrack.title}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{currentTrack.artist}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                  {upNextTracks.length === 0 ? (
+                    <div className="h-full min-h-40 grid place-items-center text-zinc-500 dark:text-zinc-400 text-sm">
+                      Queue is empty. Add songs from Browse or Up Next.
+                    </div>
+                  ) : (
+                    upNextTracks.map((track, idx) => (
+                      <div
+                        key={`${track.id}-${idx}`}
+                        draggable
+                        onDragStart={() => setDraggedQueueIndex(idx)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (draggedQueueIndex === null) return;
+                          reorderQueue(draggedQueueIndex, idx);
+                          setDraggedQueueIndex(null);
+                        }}
+                        onDragEnd={() => setDraggedQueueIndex(null)}
+                        className="flex items-center gap-3 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/50"
+                      >
+                        <img src={track.coverUrl} alt={track.title} className="w-10 h-10 rounded object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{track.title}</p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{track.artist}</p>
+                        </div>
+                        <button
+                          onClick={() => handleTrackSelect(track.id)}
+                          className="text-zinc-500 hover:text-rose-500 smooth-interactive"
+                          title="Play now"
+                        >
+                          <Play className="w-4 h-4 fill-current" />
+                        </button>
+                        <button
+                          onClick={() => removeFromQueue(track.id)}
+                          className="text-zinc-500 hover:text-red-500 smooth-interactive"
+                          title="Remove from queue"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                </motion.aside>
+              </>
+            )}
+          </AnimatePresence>
 
           {/* Lyrics Overlay */}
           <AnimatePresence>
@@ -129,6 +283,9 @@ export function RootLayout() {
           onToggleShuffle={handleToggleShuffle}
           onToggleRepeat={handleToggleRepeat}
           onToggleFavourite={handleToggleFavourite}
+          onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
+          queueCount={upNextTracks.length}
+          isQueueOpen={isQueueOpen}
         />
 
         {/* Mobile Tab Bar */}
