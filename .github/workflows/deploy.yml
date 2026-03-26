@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+
+concurrency:
+  group: railway-deploy-main
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -27,8 +29,13 @@ jobs:
       - name: Build project
         run: npm run build
       
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
       - name: Deploy to Railway
-        uses: railwayapp/deploy-action@v1
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+        run: railway up --ci --service "$RAILWAY_SERVICE_ID" --environment "$RAILWAY_ENVIRONMENT_ID" --project "$RAILWAY_PROJECT_ID"
